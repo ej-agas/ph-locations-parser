@@ -3,48 +3,58 @@ package psgc
 import (
 	"errors"
 	"strconv"
+	"strings"
 )
 
 var (
 	InvalidPSGCCode = errors.New("invalid PSGC code")
 )
 
-type CodeResolver struct {
+type psgc struct {
 	Code string
 }
 
-func (c CodeResolver) Resolve() (string, error) {
-	_, err := strconv.Atoi(c.Code)
+func NewPSGC(code string) (*psgc, error) {
+	_, err := strconv.Atoi(code)
 
 	if err != nil {
-		return "", InvalidPSGCCode
+		return &psgc{}, InvalidPSGCCode
 	}
 
-	if c.Code == "" || len(c.Code) != 10 {
-		return "", InvalidPSGCCode
+	if code == "" || len(code) != 10 {
+		return &psgc{}, InvalidPSGCCode
 	}
 
-	count := 0
-
-	for i := len(c.Code) - 1; i >= 0; i-- {
-		if c.Code[i] == '0' {
-			count++
-			continue
-		}
-
-		break // Stop counting when a non-zero digit is encountered
-	}
-
-	switch count {
-	case 8:
-		return "Region", nil
-	case 5:
-		return "Province", nil
-	case 3:
-		return "City/Municipality/Sub Municipality", nil
-	case 0:
-		return "Barangay", nil
-	default:
-		return "", InvalidPSGCCode
-	}
+	return &psgc{Code: code}, nil
 }
+
+func (p psgc) Region() string {
+	code := p.Code[:2]
+
+	code += strings.Repeat("0", 8)
+
+	return code
+}
+
+func (p psgc) Province() string {
+	code := p.Code[:5]
+
+	code += strings.Repeat("0", 5)
+
+	return code
+}
+
+func (p psgc) CityOrMunicipality() string {
+	code := p.Code[:7]
+
+	code += strings.Repeat("0", 3)
+
+	return code
+}
+
+func (p psgc) Barangay() string {
+	return p.Code
+}
+
+// 1380606000 SUBMUN
+//
