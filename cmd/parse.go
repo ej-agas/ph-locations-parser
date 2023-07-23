@@ -34,20 +34,6 @@ var (
 	fourthDistrict = "NCR, Fourth District (Not a Province)"
 )
 
-func foo(cmd *cobra.Command, args []string) {
-	code, err := psgc.NewPSGC("1380614088s")
-
-	if err != nil {
-		fmt.Println(fmt.Errorf("invalid psgc code: %w", err))
-		return
-	}
-
-	fmt.Printf("Region: %s\n", code.Region())
-	fmt.Printf("Province: %s\n", code.Province())
-	fmt.Printf("City or Municipality: %s\n", code.CityOrMunicipality())
-	fmt.Printf("Barangay: %s\n", code.Barangay())
-}
-
 func process(cmd *cobra.Command, args []string) {
 	if len(args) == 0 {
 		cmd.Help()
@@ -81,6 +67,8 @@ func process(cmd *cobra.Command, args []string) {
 	cityStore := postgresql.NewCityStore(connection)
 	municipalityStore := postgresql.NewMunicipalityStore(connection)
 	subMunicipalityStore := postgresql.NewSubMunicipalityStore(connection)
+	barangayStore := postgresql.NewBarangayStore(connection)
+	sguStore := postgresql.NewSpecialGovernmentUnit(connection)
 
 	filePath := args[0]
 	file, err := excelize.OpenFile(filePath)
@@ -108,6 +96,7 @@ func process(cmd *cobra.Command, args []string) {
 	var currentCity models.City
 	var currentMunicipality models.Municipality
 	var currentSubMunicipality models.SubMunicipality
+	var currentSgu models.SpecialGovernmentUnit
 
 	rowCount := 1
 	for _, item := range rows {
@@ -125,7 +114,7 @@ func process(cmd *cobra.Command, args []string) {
 			region := models.Region{
 				Code:       row.PSGC,
 				Name:       row.Name,
-				Population: row.IntPopulation2020(),
+				Population: row.Population2020,
 			}
 
 			if err := regionStore.Save(context.Background(), region); err != nil {
@@ -146,7 +135,7 @@ func process(cmd *cobra.Command, args []string) {
 				Code:        row.PSGC,
 				Name:        row.Name,
 				IncomeClass: row.IncomeClass,
-				Population:  row.IntPopulation2020(),
+				Population:  row.Population2020,
 				RegionId:    &currentRegion.Id,
 			}
 
@@ -166,7 +155,7 @@ func process(cmd *cobra.Command, args []string) {
 
 			district := models.District{
 				Name:       row.Name,
-				Population: row.IntPopulation2020(),
+				Population: row.Population2020,
 				RegionId:   &currentRegion.Id,
 			}
 
@@ -204,7 +193,7 @@ func process(cmd *cobra.Command, args []string) {
 				Name:        row.Name,
 				CityClass:   row.CityClass,
 				IncomeClass: row.IncomeClass,
-				Population:  row.IntPopulation2020(),
+				Population:  row.Population2020,
 			}
 
 			parentCode, err := psgc.NewPSGC(city.Code)
@@ -238,7 +227,7 @@ func process(cmd *cobra.Command, args []string) {
 				Code:        row.PSGC,
 				Name:        row.Name,
 				IncomeClass: row.IncomeClass,
-				Population:  row.IntPopulation2020(),
+				Population:  row.Population2020,
 			}
 
 			parentCode, err := psgc.NewPSGC(municipality.Code)
@@ -272,7 +261,7 @@ func process(cmd *cobra.Command, args []string) {
 			subMunicipality := models.SubMunicipality{
 				Code:       row.PSGC,
 				Name:       row.Name,
-				Population: row.IntPopulation2020(),
+				Population: row.Population2020,
 				CityId:     &currentCity.Id,
 			}
 
@@ -293,7 +282,7 @@ func process(cmd *cobra.Command, args []string) {
 				Code:       row.PSGC,
 				Name:       row.Name,
 				UrbanRural: row.UrbanRural,
-				Population: row.IntPopulation2020(),
+				Population: row.Population2020,
 			}
 
 			parentCode, err := psgc.NewPSGC(barangay.Code)
@@ -314,7 +303,54 @@ func process(cmd *cobra.Command, args []string) {
 				barangay.SubMunicipalityId = &currentSubMunicipality.Id
 			}
 
+			if parentCode.CityOrMunicipality() == currentSgu.Code {
+				barangay.SpecialGovernmentUnitId = &currentSgu.Id
+			}
+
+			if err := barangayStore.Save(context.Background(), barangay); err != nil {
+				fmt.Println(fmt.Errorf("error saving barangay %s: %w", barangay.Name, err))
+				return
+			}
+
+			fmt.Printf("saved barangay: %s\n", barangay.Name)
+		case "SGU":
+			sgu := models.SpecialGovernmentUnit{
+				Code:       row.PSGC,
+				Name:       row.Name,
+				ProvinceId: &currentProvince.Id,
+			}
+
+			if err := sguStore.Save(context.Background(), sgu); err != nil {
+				fmt.Println(fmt.Errorf("error saving special government unit %s: %w", sgu.Name, err))
+				return
+			}
+
+			currentSgu, err = sguStore.FindByCode(row.PSGC)
+			if err != nil {
+				fmt.Println(fmt.Errorf("error finding special government unit: %w", err))
+				return
+			}
+
+			fmt.Printf("saved special government unit: %s\n", sgu.Name)
 		case "":
+			province := models.Province{
+				Code:     row.PSGC,
+				Name:     row.Name,
+				RegionId: &currentRegion.Id,
+			}
+
+			if err := provinceStore.Save(context.Background(), province); err != nil {
+				fmt.Println(fmt.Errorf("error saving province %s: %w", province.Name, err))
+				return
+			}
+
+			currentProvince, err = provinceStore.FindByCode(context.Background(), row.PSGC)
+			if err != nil {
+				fmt.Println(fmt.Errorf("error finding province: %s", err))
+				return
+			}
+
+			fmt.Printf("saved province: %s", province.Name)
 		}
 		rowCount++
 	}

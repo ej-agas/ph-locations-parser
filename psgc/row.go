@@ -1,6 +1,7 @@
 package psgc
 
 import (
+	"regexp"
 	"strconv"
 )
 
@@ -13,15 +14,9 @@ type Row struct {
 	CityClass          string
 	IncomeClass        string
 	UrbanRural         string
-	Population2015     string
-	Population2020     string
+	Population2015     int
+	Population2020     int
 	Status             string
-}
-
-func (r Row) IntPopulation2020() int {
-	population, _ := strconv.Atoi(r.Population2020)
-
-	return population
 }
 
 func NewRow(row []string) *Row {
@@ -36,8 +31,8 @@ func NewRow(row []string) *Row {
 		CityClass:          "",
 		IncomeClass:        "",
 		UrbanRural:         "",
-		Population2015:     "",
-		Population2020:     "",
+		Population2015:     0,
+		Population2020:     0,
 		Status:             "",
 	}
 
@@ -100,7 +95,7 @@ func NewRow(row []string) *Row {
 		rowStruct.CityClass = row[5]
 		rowStruct.IncomeClass = row[6]
 		rowStruct.UrbanRural = row[7]
-		rowStruct.Population2015 = row[8]
+		rowStruct.Population2015 = strPopulationToInt(row[8])
 	case 11:
 		fallthrough
 	case 12:
@@ -112,8 +107,8 @@ func NewRow(row []string) *Row {
 		rowStruct.CityClass = row[5]
 		rowStruct.IncomeClass = row[6]
 		rowStruct.UrbanRural = row[7]
-		rowStruct.Population2015 = row[8]
-		rowStruct.Population2020 = row[10]
+		rowStruct.Population2015 = strPopulationToInt(row[8])
+		rowStruct.Population2020 = strPopulationToInt(row[10])
 	case 13:
 		rowStruct.PSGC = row[0]
 		rowStruct.Name = row[1]
@@ -123,10 +118,23 @@ func NewRow(row []string) *Row {
 		rowStruct.CityClass = row[5]
 		rowStruct.IncomeClass = row[6]
 		rowStruct.UrbanRural = row[7]
-		rowStruct.Population2015 = row[8]
-		rowStruct.Population2020 = row[10]
+		rowStruct.Population2015 = strPopulationToInt(row[8])
+		rowStruct.Population2020 = strPopulationToInt(row[10])
 		rowStruct.Status = row[12]
 	}
 
 	return &rowStruct
+}
+func strPopulationToInt(str string) int {
+	re := regexp.MustCompile(`[0-9,]+`)
+	match := re.FindString(str)
+
+	match = regexp.MustCompile(`[^0-9]`).ReplaceAllString(match, "")
+	num, err := strconv.Atoi(match)
+
+	if err != nil {
+		return 0
+	}
+
+	return num
 }
