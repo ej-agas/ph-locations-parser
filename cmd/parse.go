@@ -1,13 +1,14 @@
 package cmd
 
 import (
-	"context"
 	"fmt"
-	"github.com/ej-agas/ph-locations/models"
+	"github.com/charmbracelet/bubbles/spinner"
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/ej-agas/ph-locations/postgresql"
 	"github.com/ej-agas/psgc-publication-parser/psgc"
 	"github.com/spf13/cobra"
-	"github.com/xuri/excelize/v2"
+	"os"
 	"strconv"
 )
 
@@ -27,12 +28,22 @@ var parseCmd = &cobra.Command{
 	Run:   process,
 }
 
-var (
-	firstDistrict  = "NCR, City of Manila, First District (Not a Province)"
-	secondDistrict = "NCR, Second District (Not a Province)"
-	thirdDistrict  = "NCR, Third District (Not a Province)"
-	fourthDistrict = "NCR, Fourth District (Not a Province)"
-)
+//func foo(cmd *cobra.Command, args []string) {
+//	s := spinner.New()
+//	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("69"))
+//	s.Spinner = spinner.Points
+//
+//	p := tea.NewProgram(Model{
+//		sub:     make(chan struct{}),
+//		spinner: s,
+//	})
+//
+//	if _, err := p.Run(); err != nil {
+//		fmt.Println("could not start program:", err)
+//		os.Exit(1)
+//	}
+//
+//}
 
 func process(cmd *cobra.Command, args []string) {
 	if len(args) == 0 {
@@ -55,304 +66,40 @@ func process(cmd *cobra.Command, args []string) {
 	}
 
 	connection, err := postgresql.NewConnection(dbConfig)
-
 	if err != nil {
 		fmt.Println(fmt.Errorf("failed to connect to PostgreSQL: %s", err))
 		return
 	}
 
-	regionStore := postgresql.NewRegionStore(connection)
-	provinceStore := postgresql.NewProvinceStore(connection)
-	districtStore := postgresql.NewDistrictStore(connection)
-	cityStore := postgresql.NewCityStore(connection)
-	municipalityStore := postgresql.NewMunicipalityStore(connection)
-	subMunicipalityStore := postgresql.NewSubMunicipalityStore(connection)
-	barangayStore := postgresql.NewBarangayStore(connection)
-	sguStore := postgresql.NewSpecialGovernmentUnit(connection)
-
-	filePath := args[0]
-	file, err := excelize.OpenFile(filePath)
+	fmt.Println("Getting rows from file...")
+	rows, err := psgc.GetRowsFromFile(args[0])
 
 	if err != nil {
-		fmt.Println(fmt.Errorf("error opening file: %s", err))
+		fmt.Println(err)
 		return
 	}
 
-	defer func() {
-		if err := file.Close(); err != nil {
-			fmt.Println(fmt.Errorf("error closing file: %s", err))
-		}
-	}()
+	s := spinner.New()
+	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("69"))
+	s.Spinner = spinner.Points
 
-	rows, err := file.GetRows("PSGC")
-	if err != nil {
-		fmt.Println(fmt.Errorf("error getting rows: %s", err))
-		return
+	channel := make(chan psgc.CurrentRow)
+
+	parser := psgc.Parser{
+		State: *psgc.NewState(),
+		Store: *psgc.NewStore(connection),
+		Rows:  rows,
 	}
 
-	var currentRegion models.Region
-	var currentProvince models.Province
-	var currentDistrict models.District
-	var currentCity models.City
-	var currentMunicipality models.Municipality
-	var currentSubMunicipality models.SubMunicipality
-	var currentSgu models.SpecialGovernmentUnit
+	p := tea.NewProgram(Model{
+		sub:     channel,
+		parser:  parser,
+		spinner: s,
+	})
 
-	rowCount := 1
-	for _, item := range rows {
-		// Skip the header row
-		if rowCount == 1 {
-			rowCount++
-			continue
-		}
-
-		row := psgc.NewRow(item)
-
-		switch row.GeographicLevel {
-		case "Reg":
-
-			region := models.Region{
-				Code:       row.PSGC,
-				Name:       row.Name,
-				Population: row.Population2020,
-			}
-
-			if err := regionStore.Save(context.Background(), region); err != nil {
-				fmt.Println(fmt.Errorf("error saving region: %s", err))
-				return
-			}
-
-			currentRegion, err = regionStore.FindByCode(row.PSGC)
-			if err != nil {
-				fmt.Println(fmt.Errorf("failed to find region: %s", err))
-				return
-			}
-
-			fmt.Printf("saved region: %s\n", region.Name)
-		case "Prov":
-
-			province := models.Province{
-				Code:        row.PSGC,
-				Name:        row.Name,
-				IncomeClass: row.IncomeClass,
-				Population:  row.Population2020,
-				RegionId:    &currentRegion.Id,
-			}
-
-			if err := provinceStore.Save(context.Background(), province); err != nil {
-				fmt.Println(fmt.Errorf("error saving province: %s", err))
-				return
-			}
-
-			currentProvince, err = provinceStore.FindByCode(context.Background(), row.PSGC)
-			if err != nil {
-				fmt.Println(fmt.Errorf("error finding province: %s", err))
-				return
-			}
-
-			fmt.Printf("saved province: %s\n", currentProvince.Name)
-		case "Dist":
-
-			district := models.District{
-				Name:       row.Name,
-				Population: row.Population2020,
-				RegionId:   &currentRegion.Id,
-			}
-
-			if row.Name == firstDistrict {
-				district.Code = "1st"
-			}
-
-			if row.Name == secondDistrict {
-				district.Code = "2nd"
-			}
-
-			if row.Name == thirdDistrict {
-				district.Code = "3rd"
-			}
-
-			if row.Name == fourthDistrict {
-				district.Code = "4th"
-			}
-
-			if err := districtStore.Save(context.Background(), district); err != nil {
-				fmt.Println(fmt.Errorf("error saving district: %w", err))
-				return
-			}
-
-			currentDistrict, err = districtStore.FindByCode(district.Code)
-			if err != nil {
-				fmt.Println(fmt.Errorf("error finding district: %w", err))
-				return
-			}
-
-			fmt.Printf("saved district: %s\n", currentDistrict.Name)
-		case "City":
-			city := models.City{
-				Code:        row.PSGC,
-				Name:        row.Name,
-				CityClass:   row.CityClass,
-				IncomeClass: row.IncomeClass,
-				Population:  row.Population2020,
-			}
-
-			parentCode, err := psgc.NewPSGC(city.Code)
-
-			if err != nil {
-				fmt.Println(fmt.Errorf("invalid PSGC: %w", err))
-				return
-			}
-
-			if parentCode.Province() == currentProvince.Code {
-				city.ProvinceId = &currentProvince.Id
-			}
-
-			if parentCode.Province() == currentDistrict.Code {
-				city.DistrictId = &currentDistrict.Id
-			}
-
-			if err := cityStore.Save(context.Background(), city); err != nil {
-				fmt.Println(fmt.Errorf("error saving city: %w", err))
-			}
-
-			currentCity, err = cityStore.FindByCode(row.PSGC)
-			if err != nil {
-				fmt.Println(fmt.Errorf("error finding city: %w", err))
-				return
-			}
-
-			fmt.Printf("saved city: %s\n", currentCity.Name)
-		case "Mun":
-			municipality := models.Municipality{
-				Code:        row.PSGC,
-				Name:        row.Name,
-				IncomeClass: row.IncomeClass,
-				Population:  row.Population2020,
-			}
-
-			parentCode, err := psgc.NewPSGC(municipality.Code)
-
-			if err != nil {
-				fmt.Println(fmt.Errorf("invalid PSGC: %w", err))
-				return
-			}
-
-			if parentCode.Province() == currentProvince.Code {
-				municipality.ProvinceId = &currentProvince.Id
-			}
-
-			if parentCode.Province() == currentDistrict.Code {
-				municipality.DistrictId = &currentDistrict.Id
-			}
-
-			if err := municipalityStore.Save(context.Background(), municipality); err != nil {
-				fmt.Printf("%#v\n", municipality)
-				fmt.Println(fmt.Errorf("error saving municipality: %w", err))
-			}
-
-			currentMunicipality, err = municipalityStore.FindByCode(row.PSGC)
-			if err != nil {
-				fmt.Println(fmt.Errorf("error finding municipality: %w", err))
-				return
-			}
-
-			fmt.Printf("saved municipality: %s\n", currentMunicipality.Name)
-		case "SubMun":
-			subMunicipality := models.SubMunicipality{
-				Code:       row.PSGC,
-				Name:       row.Name,
-				Population: row.Population2020,
-				CityId:     &currentCity.Id,
-			}
-
-			if err := subMunicipalityStore.Save(context.Background(), subMunicipality); err != nil {
-				fmt.Println(fmt.Errorf("error saving sub municipality: %w", err))
-				return
-			}
-
-			currentSubMunicipality, err = subMunicipalityStore.FindByCode(row.PSGC)
-			if err != nil {
-				fmt.Println(fmt.Errorf("error finding sub municipality %w", err))
-				return
-			}
-
-			fmt.Printf("saved sub municipality: %s\n", currentSubMunicipality.Name)
-		case "Bgy":
-			barangay := models.Barangay{
-				Code:       row.PSGC,
-				Name:       row.Name,
-				UrbanRural: row.UrbanRural,
-				Population: row.Population2020,
-			}
-
-			parentCode, err := psgc.NewPSGC(barangay.Code)
-			if err != nil {
-				fmt.Println(fmt.Errorf("invalid PSGC: %w", err))
-				return
-			}
-
-			if parentCode.CityOrMunicipality() == currentCity.Code {
-				barangay.CityId = &currentCity.Id
-			}
-
-			if parentCode.CityOrMunicipality() == currentMunicipality.Code {
-				barangay.MunicipalityId = &currentMunicipality.Id
-			}
-
-			if parentCode.CityOrMunicipality() == currentSubMunicipality.Code {
-				barangay.SubMunicipalityId = &currentSubMunicipality.Id
-			}
-
-			if parentCode.CityOrMunicipality() == currentSgu.Code {
-				barangay.SpecialGovernmentUnitId = &currentSgu.Id
-			}
-
-			if err := barangayStore.Save(context.Background(), barangay); err != nil {
-				fmt.Println(fmt.Errorf("error saving barangay %s: %w", barangay.Name, err))
-				return
-			}
-
-			fmt.Printf("saved barangay: %s\n", barangay.Name)
-		case "SGU":
-			sgu := models.SpecialGovernmentUnit{
-				Code:       row.PSGC,
-				Name:       row.Name,
-				ProvinceId: &currentProvince.Id,
-			}
-
-			if err := sguStore.Save(context.Background(), sgu); err != nil {
-				fmt.Println(fmt.Errorf("error saving special government unit %s: %w", sgu.Name, err))
-				return
-			}
-
-			currentSgu, err = sguStore.FindByCode(row.PSGC)
-			if err != nil {
-				fmt.Println(fmt.Errorf("error finding special government unit: %w", err))
-				return
-			}
-
-			fmt.Printf("saved special government unit: %s\n", sgu.Name)
-		case "":
-			province := models.Province{
-				Code:     row.PSGC,
-				Name:     row.Name,
-				RegionId: &currentRegion.Id,
-			}
-
-			if err := provinceStore.Save(context.Background(), province); err != nil {
-				fmt.Println(fmt.Errorf("error saving province %s: %w", province.Name, err))
-				return
-			}
-
-			currentProvince, err = provinceStore.FindByCode(context.Background(), row.PSGC)
-			if err != nil {
-				fmt.Println(fmt.Errorf("error finding province: %s", err))
-				return
-			}
-
-			fmt.Printf("saved province: %s", province.Name)
-		}
-		rowCount++
+	if _, err := p.Run(); err != nil {
+		fmt.Println("could not start program:", err)
+		os.Exit(1)
 	}
 }
 

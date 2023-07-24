@@ -55,6 +55,3 @@ func (p psgc) CityOrMunicipality() string {
 func (p psgc) Barangay() string {
 	return p.Code
 }
-
-// 1380606000 SUBMUN
-//

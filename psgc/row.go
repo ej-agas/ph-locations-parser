@@ -1,6 +1,8 @@
 package psgc
 
 import (
+	"fmt"
+	"github.com/xuri/excelize/v2"
 	"regexp"
 	"strconv"
 )
@@ -19,7 +21,7 @@ type Row struct {
 	Status             string
 }
 
-func NewRow(row []string) *Row {
+func NewRow(row []string) Row {
 	columnCount := len(row)
 
 	rowStruct := Row{
@@ -38,7 +40,7 @@ func NewRow(row []string) *Row {
 
 	switch columnCount {
 	case 0:
-		return &rowStruct
+		return rowStruct
 	case 1:
 		rowStruct.PSGC = row[0]
 	case 2:
@@ -123,8 +125,9 @@ func NewRow(row []string) *Row {
 		rowStruct.Status = row[12]
 	}
 
-	return &rowStruct
+	return rowStruct
 }
+
 func strPopulationToInt(str string) int {
 	re := regexp.MustCompile(`[0-9,]+`)
 	match := re.FindString(str)
@@ -137,4 +140,33 @@ func strPopulationToInt(str string) int {
 	}
 
 	return num
+}
+
+func GetRowsFromFile(filePath string) ([]Row, error) {
+	file, err := excelize.OpenFile(filePath)
+
+	if err != nil {
+		return make([]Row, 0, 0), fmt.Errorf("error opening file: %s", err)
+	}
+
+	defer file.Close()
+
+	rawRows, err := file.GetRows("PSGC")
+	if err != nil {
+		return make([]Row, 0, 0), fmt.Errorf("error getting rows: %s", err)
+	}
+
+	rows := make([]Row, 0, len(rawRows)-1)
+
+	isHeaderSkipped := false
+	for _, rawRow := range rawRows {
+		if isHeaderSkipped == false {
+			isHeaderSkipped = true
+			continue
+		}
+
+		rows = append(rows, NewRow(rawRow))
+	}
+
+	return rows, nil
 }
