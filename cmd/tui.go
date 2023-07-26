@@ -8,7 +8,7 @@ import (
 	"os"
 )
 
-type responseMsg psgc.CurrentRow
+type responseMsg struct{}
 
 func listenForActivity(m Model) tea.Cmd {
 
@@ -26,14 +26,14 @@ func listenForActivity(m Model) tea.Cmd {
 }
 
 // A command that waits for the activity on a channel.
-func waitForActivity(sub chan psgc.CurrentRow) tea.Cmd {
+func waitForActivity(sub chan struct{}) tea.Cmd {
 	return func() tea.Msg {
 		return responseMsg(<-sub)
 	}
 }
 
 type Model struct {
-	sub     chan psgc.CurrentRow
+	sub     chan struct{}
 	parser  psgc.Parser
 	spinner spinner.Model
 	done    bool

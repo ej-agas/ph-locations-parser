@@ -17,16 +17,9 @@ type Parser struct {
 	State State
 	Store Store
 	Rows  []Row
-	//CurrentRow chan CurrentRow
 }
 
-type CurrentRow struct {
-	Type  string
-	Name  string
-	Count int
-}
-
-func (p Parser) Run(currentRow chan<- CurrentRow) error {
+func (p Parser) Run(currentRow chan<- struct{}) error {
 	var err error
 	count := 1
 
@@ -49,11 +42,7 @@ func (p Parser) Run(currentRow chan<- CurrentRow) error {
 				return fmt.Errorf("failed to find region: %s", err)
 			}
 
-			currentRow <- CurrentRow{
-				Type:  "Region",
-				Name:  row.Name,
-				Count: count,
-			}
+			currentRow <- struct{}{}
 		case "Prov":
 
 			province := models.Province{
@@ -61,7 +50,7 @@ func (p Parser) Run(currentRow chan<- CurrentRow) error {
 				Name:        row.Name,
 				IncomeClass: row.IncomeClass,
 				Population:  row.Population2020,
-				RegionId:    &p.State.Region.Id,
+				RegionCode:  &p.State.Region.Code,
 			}
 
 			if err := p.Store.Province.Save(context.Background(), province); err != nil {
@@ -73,17 +62,13 @@ func (p Parser) Run(currentRow chan<- CurrentRow) error {
 				return fmt.Errorf("error finding province: %s", err)
 			}
 
-			currentRow <- CurrentRow{
-				Type:  "Province",
-				Name:  row.Name,
-				Count: count,
-			}
+			currentRow <- struct{}{}
 		case "Dist":
 
 			district := models.District{
 				Name:       row.Name,
 				Population: row.Population2020,
-				RegionId:   &p.State.Region.Id,
+				RegionCode: &p.State.Region.Code,
 			}
 
 			if row.Name == firstDistrict {
@@ -111,11 +96,7 @@ func (p Parser) Run(currentRow chan<- CurrentRow) error {
 				return fmt.Errorf("error finding district: %w", err)
 			}
 
-			currentRow <- CurrentRow{
-				Type:  "District",
-				Name:  row.Name,
-				Count: count,
-			}
+			currentRow <- struct{}{}
 		case "City":
 			city := models.City{
 				Code:        row.PSGC,
@@ -132,11 +113,11 @@ func (p Parser) Run(currentRow chan<- CurrentRow) error {
 			}
 
 			if parentCode.Province() == p.State.Province.Code {
-				city.ProvinceId = &p.State.Province.Id
+				city.ProvinceCode = &p.State.Province.Code
 			}
 
 			if parentCode.Province() == p.State.District.Code {
-				city.DistrictId = &p.State.District.Id
+				city.DistrictCode = &p.State.District.Code
 			}
 
 			if err := p.Store.City.Save(context.Background(), city); err != nil {
@@ -149,11 +130,7 @@ func (p Parser) Run(currentRow chan<- CurrentRow) error {
 
 			}
 
-			currentRow <- CurrentRow{
-				Type:  "City",
-				Name:  row.Name,
-				Count: count,
-			}
+			currentRow <- struct{}{}
 		case "Mun":
 			municipality := models.Municipality{
 				Code:        row.PSGC,
@@ -169,11 +146,11 @@ func (p Parser) Run(currentRow chan<- CurrentRow) error {
 			}
 
 			if parentCode.Province() == p.State.Province.Code {
-				municipality.ProvinceId = &p.State.Province.Id
+				municipality.ProvinceCode = &p.State.Province.Code
 			}
 
 			if parentCode.Province() == p.State.District.Code {
-				municipality.DistrictId = &p.State.District.Id
+				municipality.DistrictCode = &p.State.District.Code
 			}
 
 			if err := p.Store.Municipality.Save(context.Background(), municipality); err != nil {
@@ -185,17 +162,13 @@ func (p Parser) Run(currentRow chan<- CurrentRow) error {
 				return fmt.Errorf("error finding municipality: %w", err)
 			}
 
-			currentRow <- CurrentRow{
-				Type:  "Municipality",
-				Name:  row.Name,
-				Count: count,
-			}
+			currentRow <- struct{}{}
 		case "SubMun":
 			subMunicipality := models.SubMunicipality{
 				Code:       row.PSGC,
 				Name:       row.Name,
 				Population: row.Population2020,
-				CityId:     &p.State.City.Id,
+				CityCode:   &p.State.City.Code,
 			}
 
 			if err := p.Store.SubMunicipality.Save(context.Background(), subMunicipality); err != nil {
@@ -207,11 +180,7 @@ func (p Parser) Run(currentRow chan<- CurrentRow) error {
 				return fmt.Errorf("error finding sub municipality %w", err)
 			}
 
-			currentRow <- CurrentRow{
-				Type:  "Sub Municipality",
-				Name:  row.Name,
-				Count: count,
-			}
+			currentRow <- struct{}{}
 		case "Bgy":
 			barangay := models.Barangay{
 				Code:       row.PSGC,
@@ -226,35 +195,31 @@ func (p Parser) Run(currentRow chan<- CurrentRow) error {
 			}
 
 			if parentCode.CityOrMunicipality() == p.State.City.Code {
-				barangay.CityId = &p.State.City.Id
+				barangay.CityCode = &p.State.City.Code
 			}
 
 			if parentCode.CityOrMunicipality() == p.State.Municipality.Code {
-				barangay.MunicipalityId = &p.State.Municipality.Id
+				barangay.MunicipalityCode = &p.State.Municipality.Code
 			}
 
 			if parentCode.CityOrMunicipality() == p.State.SubMunicipality.Code {
-				barangay.SubMunicipalityId = &p.State.SubMunicipality.Id
+				barangay.SubMunicipalityCode = &p.State.SubMunicipality.Code
 			}
 
 			if parentCode.CityOrMunicipality() == p.State.SpecialGovernmentUnit.Code {
-				barangay.SpecialGovernmentUnitId = &p.State.SpecialGovernmentUnit.Id
+				barangay.SpecialGovernmentUnitCode = &p.State.SpecialGovernmentUnit.Code
 			}
 
 			if err := p.Store.Barangay.Save(context.Background(), barangay); err != nil {
 				return fmt.Errorf("error saving barangay %s: %w", barangay.Name, err)
 			}
 
-			currentRow <- CurrentRow{
-				Type:  "Barangay",
-				Name:  row.Name,
-				Count: count,
-			}
+			currentRow <- struct{}{}
 		case "SGU":
 			sgu := models.SpecialGovernmentUnit{
-				Code:       row.PSGC,
-				Name:       row.Name,
-				ProvinceId: &p.State.Province.Id,
+				Code:         row.PSGC,
+				Name:         row.Name,
+				ProvinceCode: &p.State.Province.Code,
 			}
 
 			if err := p.Store.SpecialGovernmentUnit.Save(context.Background(), sgu); err != nil {
@@ -266,16 +231,12 @@ func (p Parser) Run(currentRow chan<- CurrentRow) error {
 				return fmt.Errorf("error finding special government unit: %w", err)
 			}
 
-			currentRow <- CurrentRow{
-				Type:  "Special Government Unit",
-				Name:  row.Name,
-				Count: count,
-			}
+			currentRow <- struct{}{}
 		case "":
 			province := models.Province{
-				Code:     row.PSGC,
-				Name:     row.Name,
-				RegionId: &p.State.Region.Id,
+				Code:       row.PSGC,
+				Name:       row.Name,
+				RegionCode: &p.State.Region.Code,
 			}
 
 			if err := p.Store.Province.Save(context.Background(), province); err != nil {
@@ -287,11 +248,7 @@ func (p Parser) Run(currentRow chan<- CurrentRow) error {
 				return fmt.Errorf("error finding province: %s", err)
 			}
 
-			currentRow <- CurrentRow{
-				Type:  "Interim Province",
-				Name:  row.Name,
-				Count: count,
-			}
+			currentRow <- struct{}{}
 		}
 		count++
 	}

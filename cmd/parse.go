@@ -28,23 +28,6 @@ var parseCmd = &cobra.Command{
 	Run:   process,
 }
 
-//func foo(cmd *cobra.Command, args []string) {
-//	s := spinner.New()
-//	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("69"))
-//	s.Spinner = spinner.Points
-//
-//	p := tea.NewProgram(Model{
-//		sub:     make(chan struct{}),
-//		spinner: s,
-//	})
-//
-//	if _, err := p.Run(); err != nil {
-//		fmt.Println("could not start program:", err)
-//		os.Exit(1)
-//	}
-//
-//}
-
 func process(cmd *cobra.Command, args []string) {
 	if len(args) == 0 {
 		cmd.Help()
@@ -80,10 +63,8 @@ func process(cmd *cobra.Command, args []string) {
 	}
 
 	s := spinner.New()
-	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("69"))
+	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("75"))
 	s.Spinner = spinner.Points
-
-	channel := make(chan psgc.CurrentRow)
 
 	parser := psgc.Parser{
 		State: *psgc.NewState(),
@@ -92,7 +73,7 @@ func process(cmd *cobra.Command, args []string) {
 	}
 
 	p := tea.NewProgram(Model{
-		sub:     channel,
+		sub:     make(chan struct{}),
 		parser:  parser,
 		spinner: s,
 	})

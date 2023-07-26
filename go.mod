@@ -3,7 +3,7 @@ module github.com/ej-agas/psgc-publication-parser
 go 1.20
 
 require (
-	github.com/ej-agas/ph-locations v0.0.0-20230723112156-07d063f57cbe
+	github.com/ej-agas/ph-locations v0.0.0-20230726045621-c74a5fbfc220
 	github.com/spf13/cobra v1.7.0
 	github.com/xuri/excelize/v2 v2.7.1
 )
