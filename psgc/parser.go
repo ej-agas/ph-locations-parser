@@ -112,6 +112,15 @@ func (p Parser) Run(currentRow chan<- struct{}) error {
 				fmt.Println(fmt.Errorf("invalid PSGC: %w", err))
 			}
 
+			// Interim District codes of the 4 NCR districts
+			NCRInterimDistrictCodes := []string{"1st", "2nd", "3rd", "4th"}
+			for _, code := range NCRInterimDistrictCodes {
+				NCRRegionCode := "1300000000"
+				if p.State.District.Code == code && p.State.Region.Code == NCRRegionCode {
+					city.DistrictCode = &p.State.District.Code
+				}
+			}
+
 			if parentCode.Province() == p.State.Province.Code {
 				city.ProvinceCode = &p.State.Province.Code
 			}
@@ -121,7 +130,7 @@ func (p Parser) Run(currentRow chan<- struct{}) error {
 			}
 
 			if err := p.Store.City.Save(context.Background(), city); err != nil {
-				return fmt.Errorf("error saving city: %w", err)
+				return fmt.Errorf("error saving city %s: %w", city.Name, err)
 			}
 
 			p.State.City, err = p.Store.City.FindByCode(row.PSGC)
