@@ -8,16 +8,18 @@ import (
 	"github.com/ej-agas/ph-locations/postgresql"
 	"github.com/ej-agas/psgc-publication-parser/psgc"
 	"github.com/spf13/cobra"
+	"golang.org/x/crypto/ssh/terminal"
 	"os"
 	"strconv"
 )
 
 var (
-	host     *string
-	port     *string
-	user     *string
-	password *string
-	db       *string
+	host         *string
+	port         *string
+	user         *string
+	password     *string
+	db           *string
+	passwordFlag bool
 )
 
 // parseCmd represents the parse command
@@ -32,6 +34,16 @@ func process(cmd *cobra.Command, args []string) {
 	if len(args) == 0 {
 		cmd.Help()
 		return
+	}
+
+	if passwordFlag == false {
+		fmt.Println("no database password provided")
+		os.Exit(1)
+	}
+
+	if err := promptPassword(); err != nil {
+		fmt.Println(fmt.Errorf("error parsing password: %w", err))
+		os.Exit(1)
 	}
 
 	dbPort, err := strconv.Atoi(*port)
@@ -54,7 +66,7 @@ func process(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	fmt.Println("Getting rows from file...")
+	fmt.Println("\nGetting rows from file...")
 	rows, err := psgc.GetRowsFromFile(args[0])
 
 	if err != nil {
@@ -79,9 +91,14 @@ func process(cmd *cobra.Command, args []string) {
 	})
 
 	if _, err := p.Run(); err != nil {
-		fmt.Println("could not start program:", err)
+		fmt.Println(fmt.Errorf("could not start program: %w", err))
 		os.Exit(1)
 	}
+
+	style := lipgloss.NewStyle().Bold(true).
+		Foreground(lipgloss.Color("#50C878"))
+
+	fmt.Println(style.Render("All done!"))
 }
 
 func init() {
@@ -90,6 +107,21 @@ func init() {
 	host = parseCmd.Flags().String("host", "127.0.0.1", "PostgreSQL Host")
 	port = parseCmd.Flags().String("port", "5173", "PostgreSQL Port")
 	user = parseCmd.Flags().String("user", "ph_locations_user", "PostgreSQL User")
-	password = parseCmd.Flags().String("password", "", "PostgreSQL Password")
+	parseCmd.Flags().BoolVar(&passwordFlag, "password", false, "PostgreSQL password")
 	db = parseCmd.Flags().String("db", "ph_locations_db", "PostgreSQL Database Name")
+}
+
+func promptPassword() error {
+	fmt.Print("Enter password: ")
+
+	passwordBytes, err := terminal.ReadPassword(int(os.Stdin.Fd()))
+
+	if err != nil {
+		return err
+	}
+
+	pass := string(passwordBytes)
+	password = &pass
+
+	return nil
 }

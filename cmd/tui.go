@@ -59,7 +59,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.done = true
 			return m, tea.Quit
 		}
-
 		m.count++
 		return m, waitForActivity(m.sub)
 	case spinner.TickMsg:
@@ -74,7 +73,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m Model) View() string {
 	totalCount := len(m.parser.Rows)
 
-	s := fmt.Sprintf("\n %s Saved: %d/%d\n\n", m.spinner.View(), m.count, totalCount)
+	s := fmt.Sprintf("\n %s Saved Rows: %d/%d\n\n", m.spinner.View(), m.count, totalCount)
 	if m.done {
 		s += "\n"
 	}
