@@ -1,18 +1,20 @@
-module github.com/ej-agas/psgc-publication-parser
+module github.com/ej-agas/ph-locations-parser
 
 go 1.20
 
 require (
+	github.com/charmbracelet/bubbles v0.16.1
+	github.com/charmbracelet/bubbletea v0.24.2
+	github.com/charmbracelet/lipgloss v0.7.1
 	github.com/ej-agas/ph-locations v0.0.0-20230726045621-c74a5fbfc220
+	github.com/ej-agas/psgc-publication-parser v0.1.0
 	github.com/spf13/cobra v1.7.0
 	github.com/xuri/excelize/v2 v2.7.1
+	golang.org/x/crypto v0.11.0
 )
 
 require (
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
-	github.com/charmbracelet/bubbles v0.16.1 // indirect
-	github.com/charmbracelet/bubbletea v0.24.2 // indirect
-	github.com/charmbracelet/lipgloss v0.7.1 // indirect
 	github.com/containerd/console v1.0.4-0.20230313162750-1ae8d489ac81 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/lib/pq v1.10.9 // indirect
@@ -31,7 +33,6 @@ require (
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/xuri/efp v0.0.0-20230422071738-01f4e37c47e9 // indirect
 	github.com/xuri/nfp v0.0.0-20230503010013-3f38cdbb0b83 // indirect
-	golang.org/x/crypto v0.11.0 // indirect
 	golang.org/x/net v0.12.0 // indirect
 	golang.org/x/sync v0.1.0 // indirect
 	golang.org/x/sys v0.10.0 // indirect

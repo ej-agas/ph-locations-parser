@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/ej-agas/psgc-publication-parser/psgc"
+	"github.com/ej-agas/ph-locations-parser/internal"
 	"os"
 )
 
@@ -34,7 +34,7 @@ func waitForActivity(sub chan struct{}) tea.Cmd {
 
 type Model struct {
 	sub     chan struct{}
-	parser  psgc.Parser
+	parser  internal.Parser
 	spinner spinner.Model
 	done    bool
 	count   int

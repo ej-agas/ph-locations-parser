@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/ej-agas/psgc-publication-parser/cmd"
+	"github.com/ej-agas/ph-locations-parser/cmd"
 )
 
 func main() {

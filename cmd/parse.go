@@ -5,8 +5,8 @@ import (
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/ej-agas/ph-locations-parser/internal"
 	"github.com/ej-agas/ph-locations/postgresql"
-	"github.com/ej-agas/psgc-publication-parser/psgc"
 	"github.com/spf13/cobra"
 	"golang.org/x/crypto/ssh/terminal"
 	"os"
@@ -67,7 +67,7 @@ func process(cmd *cobra.Command, args []string) {
 	}
 
 	fmt.Println("\nGetting rows from file...")
-	rows, err := psgc.GetRowsFromFile(args[0])
+	rows, err := internal.GetRowsFromFile(args[0])
 
 	if err != nil {
 		fmt.Println(err)
@@ -78,9 +78,9 @@ func process(cmd *cobra.Command, args []string) {
 	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("75"))
 	s.Spinner = spinner.Points
 
-	parser := psgc.Parser{
-		State: *psgc.NewState(),
-		Store: *psgc.NewStore(connection),
+	parser := internal.Parser{
+		State: *internal.NewState(),
+		Store: *internal.NewStore(connection),
 		Rows:  rows,
 	}
 

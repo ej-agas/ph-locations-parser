@@ -1,4 +1,4 @@
-package psgc
+package internal
 
 import (
 	"context"
