@@ -105,7 +105,7 @@ func init() {
 	rootCmd.AddCommand(parseCmd)
 
 	host = parseCmd.Flags().String("host", "127.0.0.1", "PostgreSQL Host")
-	port = parseCmd.Flags().String("port", "5173", "PostgreSQL Port")
+	port = parseCmd.Flags().String("port", "5432", "PostgreSQL Port")
 	user = parseCmd.Flags().String("user", "ph_locations_user", "PostgreSQL User")
 	parseCmd.Flags().BoolVar(&passwordFlag, "password", false, "PostgreSQL password")
 	db = parseCmd.Flags().String("db", "ph_locations_db", "PostgreSQL Database Name")

@@ -10,8 +10,8 @@ var Version string
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:   "internal-pub-parser",
-	Short: "internal-pub-parser",
+	Use:   "ph-locations-parser",
+	Short: "ph-locations-parser",
 	Long:  `Parses PSGC publication file and stores it to ph-locations' database.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		if *vFlag {
